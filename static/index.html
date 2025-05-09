@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pepe Chainsaw Animation Generator</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🐸 Pepe Chainsaw Animation Generator</h1>
+        <div class="input-group mb-3">
+            <input type="text" id="xHandle" placeholder="Enter X handle (e.g. elonmusk)" required>
+            <button onclick="generateAnimation()" id="generateBtn">Generate Animation</button>
+            <button class="btn btn-info" type="button" id="testBtn">Test Connection</button>
+        </div>
+
+        <script>
+            document.getElementById('testBtn').addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/test');
+                    const data = await response.json();
+                    console.log('Test response:', data);
+                    alert('Server is running!\nAvailable routes:\n' + data.routes.join('\n'));
+                } catch (error) {
+                    console.error('Test failed:', error);
+                    alert('Failed to connect to server. Please check if the Flask application is running.');
+                    console.log('Detailed error:', error);
+                }
+            });
+        </script>
+        
+        <div id="loading" class="loading" style="display: none;">
+            Generating animation... Please wait...
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="result">
+            <video id="animationVideo" controls style="display: none;">
+                Your browser does not support the video tag.
+            </video>
+            <div id="downloadContainer" style="display: none;">
+                <button onclick="downloadAnimation()" class="download-btn">Download Animation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentVideoUrl = null;
+
+        async function generateAnimation() {
+            const xHandle = document.getElementById('xHandle').value.trim();
+            if (!xHandle) {
+                showError('Please enter an X handle');
+                return;
+            }
+
+            // Disable button and show loading
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            showLoading(true);
+            hideError();
+            hideVideo();
+
+            try {
+                console.log('Starting animation generation for:', xHandle);
+                
+                // Use relative URL to ensure it works with any server configuration
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        x_handle: xHandle
+                    })
+                });
+
+                const responseData = await response.json();
+                console.log('Server response:', responseData);
+
+                if (!response.ok) {
+                    const errorMessage = responseData.error || 'Failed to generate animation';
+                    const errorDetails = responseData.details || '';
+                    console.error('Error details:', errorDetails);
+                    throw new Error(`${errorMessage}\n${errorDetails}`);
+                }
+
+                // Show the video
+                currentVideoUrl = responseData.video_url;
+                const video = document.getElementById('animationVideo');
+                video.src = currentVideoUrl;
+                video.style.display = 'block';
+                
+                // Show the download button
+                document.getElementById('downloadContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error generating animation:', error);
+                showError(`Error: ${error.message}`);
+            } finally {
+                generateBtn.disabled = false;
+                showLoading(false);
+            }
+        }
+
+        function downloadAnimation() {
+            if (currentVideoUrl) {
+                window.location.href = currentVideoUrl;
+            }
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function hideVideo() {
+            document.getElementById('animationVideo').style.display = 'none';
+            document.getElementById('downloadContainer').style.display = 'none';
+        }
+
+        // Handle Enter key in input
+        document.getElementById('xHandle').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateAnimation();
+            }
+        });
+    </script>
+</body>
+</html>
